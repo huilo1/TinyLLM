@@ -13,9 +13,9 @@
 
 `Dockerfile` в корне проекта:
 
-- ставит Python 3.11;
+- стартует от `pytorch/pytorch:2.6.0-cuda12.4-cudnn9-runtime`;
 - ставит `uv`;
-- явно ставит `torch` из `cu124` wheel'ов;
+- докладывает только project-specific зависимости;
 - копирует код и оба tokenizer-пути: `tiny_rfn` и `tiny_rfn_v2`;
 - оставляет контейнер универсальным для train, eval и demo.
 
@@ -37,6 +37,18 @@ docker build -t tinyllm:cu124 .
 ```bash
 docker tag tinyllm:cu124 ghcr.io/huilo1/tinyllm:cu124-v2
 docker push ghcr.io/huilo1/tinyllm:cu124-v2
+```
+
+Сейчас этот образ уже опубликован:
+
+```text
+ghcr.io/huilo1/tinyllm:cu124-v2
+```
+
+Digest:
+
+```text
+sha256:621c73ea54447d573ddb34292d9ab7cf94aeacb151619a6eda3739fdd39f1363
 ```
 
 ## Запуск на Vast.ai
