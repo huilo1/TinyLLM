@@ -59,7 +59,9 @@
 ## Структура проекта
 
 - `configs/tiny_rfn.toml` — основной конфиг.
+- `configs/tiny_rfn_v2.toml` — улучшенный конфиг news-модели с dedup и scheduler.
 - `configs/smoke.toml` — очень маленький запуск для локальной проверки.
+- `configs/smoke_v2.toml` — smoke-конфиг для проверки улучшенного пайплайна.
 - `src/tinyllm/prepare_dataset.py` — загрузка и нормализация датасета.
 - `src/tinyllm/tokenizer.py` — обучение tokenizer с нуля.
 - `src/tinyllm/model.py` — tiny GPT-подобная модель на PyTorch.
@@ -69,6 +71,22 @@
 - `src/tinyllm/app.py` — локальный Gradio UI для тестирования модели.
 
 ## Пайплайн
+
+### Что улучшено в v2
+
+`tiny_rfn_v2.toml` и `smoke_v2.toml` добавляют три практических улучшения, которые полезны именно для news-модели:
+
+- более строгую чистку корпуса;
+- дедупликацию почти одинаковых новостей;
+- scheduler c warmup и cosine decay;
+- сохранение sample generations после каждой эпохи.
+
+Почему это важно:
+
+- новости часто содержат дубликаты, короткие служебные записи и повторяющиеся шаблоны;
+- без dedup модель слишком легко переучивается на почти одинаковых текстах;
+- без scheduler learning rate остается грубым на старте и в конце обучения;
+- sample generations по эпохам помогают видеть не только loss, но и эволюцию стиля текста.
 
 ### Шаг 1. Установить зависимости
 
@@ -83,6 +101,12 @@ uv pip install -e .
 
 ```bash
 uv run tinyllm-prepare --config configs/tiny_rfn.toml
+```
+
+Для улучшенного пайплайна:
+
+```bash
+uv run tinyllm-prepare --config configs/tiny_rfn_v2.toml
 ```
 
 Что делает шаг:
@@ -105,6 +129,12 @@ uv run tinyllm-prepare --config configs/tiny_rfn.toml
 uv run tinyllm-train-tokenizer --config configs/tiny_rfn.toml
 ```
 
+Для v2:
+
+```bash
+uv run tinyllm-train-tokenizer --config configs/tiny_rfn_v2.toml
+```
+
 Что делает шаг:
 
 - читает только `train` split;
@@ -120,6 +150,15 @@ uv run tinyllm-prepare --config configs/smoke.toml
 uv run tinyllm-train-tokenizer --config configs/smoke.toml
 uv run tinyllm-cache-tokens --config configs/smoke.toml
 uv run tinyllm-train --config configs/smoke.toml
+```
+
+Улучшенный smoke-run:
+
+```bash
+uv run tinyllm-prepare --config configs/smoke_v2.toml
+uv run tinyllm-train-tokenizer --config configs/smoke_v2.toml
+uv run tinyllm-cache-tokens --config configs/smoke_v2.toml
+uv run tinyllm-train --config configs/smoke_v2.toml
 ```
 
 Цель этого запуска:
@@ -139,11 +178,29 @@ uv run tinyllm-train --config configs/smoke.toml
 uv run tinyllm-cache-tokens --config configs/tiny_rfn.toml --splits train validation
 ```
 
+Для v2:
+
+```bash
+uv run tinyllm-cache-tokens --config configs/tiny_rfn_v2.toml --splits train validation
+```
+
 Почему это важно: токенизация корпуса не требует GPU, но может занять заметное время. Если сделать этот шаг заранее, на `vast.ai` оплачиваемое время уйдет именно на обучение, а не на подготовку последовательностей.
 
 ```bash
 uv run tinyllm-train --config configs/tiny_rfn.toml
 ```
+
+Рекомендуемый основной запуск сейчас:
+
+```bash
+uv run tinyllm-train --config configs/tiny_rfn_v2.toml
+```
+
+После каждой эпохи v2 будет сохранять генерации в:
+
+- `artifacts/<run_name>/samples/epoch_01.json`
+- `artifacts/<run_name>/samples/epoch_02.json`
+- и так далее
 
 ### Шаг 6. Оценка и генерация
 

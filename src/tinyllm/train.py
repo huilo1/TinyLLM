@@ -6,6 +6,7 @@ import math
 import time
 
 import torch
+from torch.optim.lr_scheduler import LambdaLR
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 
@@ -13,6 +14,11 @@ from tinyllm.config import ExperimentConfig, load_config
 from tinyllm.data import create_block_dataset, load_tokenizer
 from tinyllm.model import TinyGPT, causal_lm_loss, model_size_millions
 from tinyllm.utils import count_parameters, ensure_dir, save_json, select_device, set_seed
+
+DEFAULT_SAMPLE_PROMPTS = [
+    "Источник: finam\nДата: 2024-01-15\nЗаголовок:",
+    "Источник: smart_lab\nДата: 2024-03-12\nТекст:",
+]
 
 
 def create_optimizer(model: torch.nn.Module, config: ExperimentConfig) -> torch.optim.Optimizer:
@@ -51,6 +57,28 @@ def create_grad_scaler(device: str) -> torch.amp.GradScaler | None:
     return torch.amp.GradScaler("cuda")
 
 
+def create_scheduler(
+    optimizer: torch.optim.Optimizer,
+    total_steps: int,
+    warmup_ratio: float,
+    min_lr_ratio: float,
+) -> LambdaLR:
+    total_steps = max(total_steps, 1)
+    warmup_steps = int(total_steps * warmup_ratio)
+    min_lr_ratio = min(max(min_lr_ratio, 0.0), 1.0)
+
+    def lr_lambda(current_step: int) -> float:
+        if warmup_steps > 0 and current_step < warmup_steps:
+            return float(current_step + 1) / float(max(warmup_steps, 1))
+        progress_steps = max(total_steps - warmup_steps, 1)
+        progress = float(current_step - warmup_steps) / float(progress_steps)
+        progress = min(max(progress, 0.0), 1.0)
+        cosine = 0.5 * (1.0 + math.cos(math.pi * progress))
+        return min_lr_ratio + (1.0 - min_lr_ratio) * cosine
+
+    return LambdaLR(optimizer, lr_lambda=lr_lambda)
+
+
 @torch.no_grad()
 def evaluate(
     model: TinyGPT,
@@ -63,7 +91,8 @@ def evaluate(
     for x, y in loader:
         x = x.to(device)
         y = y.to(device)
-        logits = model(x)
+        with create_autocast(device):
+            logits = model(x)
         loss = causal_lm_loss(logits, y)
         total_loss += loss.item()
         total_batches += 1
@@ -77,6 +106,7 @@ def save_checkpoint(
     checkpoint_path: str,
     model: TinyGPT,
     optimizer: torch.optim.Optimizer,
+    scheduler: LambdaLR,
     config: ExperimentConfig,
     epoch: int,
     best_val_loss: float,
@@ -85,12 +115,53 @@ def save_checkpoint(
         {
             "model_state_dict": model.state_dict(),
             "optimizer_state_dict": optimizer.state_dict(),
+            "scheduler_state_dict": scheduler.state_dict(),
             "epoch": epoch,
             "best_val_loss": best_val_loss,
             "config_name": config.run.name,
         },
         checkpoint_path,
     )
+
+
+@torch.no_grad()
+def save_epoch_samples(
+    model: TinyGPT,
+    tokenizer,
+    config: ExperimentConfig,
+    device: str,
+    epoch: int,
+) -> None:
+    prompts = config.generation.sample_prompts or DEFAULT_SAMPLE_PROMPTS
+    bos_id = tokenizer.token_to_id("<bos>")
+    eos_id = tokenizer.token_to_id("<eos>")
+    was_training = model.training
+    model.eval()
+
+    samples = []
+    for prompt in prompts:
+        prompt_ids = tokenizer.encode(prompt, add_special_tokens=False).ids
+        input_ids = torch.tensor([[bos_id, *prompt_ids]], dtype=torch.long, device=device)
+        generated_ids = model.generate(
+            input_ids=input_ids,
+            max_new_tokens=config.generation.max_new_tokens,
+            temperature=config.generation.temperature,
+            top_k=config.generation.top_k,
+            eos_token_id=eos_id,
+        )[0].tolist()
+        full_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+        completion = full_text[len(prompt) :].lstrip() if full_text.startswith(prompt) else full_text
+        samples.append(
+            {
+                "prompt": prompt,
+                "completion": completion,
+                "full_text": full_text,
+            }
+        )
+
+    save_json(config.run_dir / "samples" / f"epoch_{epoch:02d}.json", {"epoch": epoch, "samples": samples})
+    if was_training:
+        model.train()
 
 
 def train(config: ExperimentConfig) -> None:
@@ -118,6 +189,13 @@ def train(config: ExperimentConfig) -> None:
         shuffle=False,
         num_workers=config.training.num_workers,
     )
+    total_training_steps = len(train_loader) * config.training.num_epochs
+    scheduler = create_scheduler(
+        optimizer=optimizer,
+        total_steps=total_training_steps,
+        warmup_ratio=config.training.warmup_ratio,
+        min_lr_ratio=config.training.min_lr_ratio,
+    )
 
     metadata = {
         "device": device,
@@ -126,6 +204,7 @@ def train(config: ExperimentConfig) -> None:
         "vocab_size": vocab_size,
         "parameter_count": count_parameters(model),
         "estimated_model_size_millions": model_size_millions(config.model, vocab_size),
+        "total_training_steps": total_training_steps,
     }
     save_json(config.run_dir / "train_setup.json", metadata)
     print(metadata)
@@ -157,9 +236,11 @@ def train(config: ExperimentConfig) -> None:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.training.grad_clip)
                 grad_scaler.step(optimizer)
                 grad_scaler.update()
+            scheduler.step()
 
             epoch_losses.append(loss.item())
-            progress.set_postfix(loss=f"{loss.item():.4f}")
+            current_lr = optimizer.param_groups[0]["lr"]
+            progress.set_postfix(loss=f"{loss.item():.4f}", lr=f"{current_lr:.2e}")
 
         train_loss = sum(epoch_losses) / max(len(epoch_losses), 1)
         val_loss, val_ppl = evaluate(model, val_loader, device=device)
@@ -170,17 +251,23 @@ def train(config: ExperimentConfig) -> None:
             "train_loss": round(train_loss, 4),
             "validation_loss": round(val_loss, 4),
             "validation_perplexity": round(val_ppl, 4) if math.isfinite(val_ppl) else "inf",
+            "learning_rate": f"{optimizer.param_groups[0]['lr']:.6e}",
             "epoch_seconds": round(epoch_seconds, 2),
         }
         history.append(epoch_record)
         save_json(config.run_dir / "history.json", {"epochs": history})
 
-        last_checkpoint = config.checkpoints_dir / "last.pt"
-        save_checkpoint(str(last_checkpoint), model, optimizer, config, epoch, best_val_loss)
-        if val_loss < best_val_loss:
+        improved = val_loss < best_val_loss
+        if improved:
             best_val_loss = val_loss
+
+        last_checkpoint = config.checkpoints_dir / "last.pt"
+        save_checkpoint(str(last_checkpoint), model, optimizer, scheduler, config, epoch, best_val_loss)
+        if improved:
             best_checkpoint = config.checkpoints_dir / "best.pt"
-            save_checkpoint(str(best_checkpoint), model, optimizer, config, epoch, best_val_loss)
+            save_checkpoint(str(best_checkpoint), model, optimizer, scheduler, config, epoch, best_val_loss)
+
+        save_epoch_samples(model, tokenizer, config, device, epoch)
 
         print(epoch_record)
 

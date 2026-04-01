@@ -22,6 +22,7 @@ class DataConfig:
     max_validation_samples: int
     max_test_samples: int
     text_separator: str
+    deduplicate: bool
 
 
 @dataclass(slots=True)
@@ -49,6 +50,8 @@ class TrainingConfig:
     num_epochs: int
     grad_clip: float
     num_workers: int
+    warmup_ratio: float
+    min_lr_ratio: float
 
 
 @dataclass(slots=True)
@@ -56,6 +59,7 @@ class GenerationConfig:
     max_new_tokens: int
     temperature: float
     top_k: int
+    sample_prompts: list[str]
 
 
 @dataclass(slots=True)
@@ -103,6 +107,7 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
         max_validation_samples=int(raw["data"]["max_validation_samples"]),
         max_test_samples=int(raw["data"]["max_test_samples"]),
         text_separator=raw["data"]["text_separator"],
+        deduplicate=bool(raw["data"].get("deduplicate", False)),
     )
     tokenizer = TokenizerConfig(
         vocab_size=int(raw["tokenizer"]["vocab_size"]),
@@ -124,11 +129,14 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
         num_epochs=int(raw["training"]["num_epochs"]),
         grad_clip=float(raw["training"]["grad_clip"]),
         num_workers=int(raw["training"]["num_workers"]),
+        warmup_ratio=float(raw["training"].get("warmup_ratio", 0.0)),
+        min_lr_ratio=float(raw["training"].get("min_lr_ratio", 1.0)),
     )
     generation = GenerationConfig(
         max_new_tokens=int(raw["generation"]["max_new_tokens"]),
         temperature=float(raw["generation"]["temperature"]),
         top_k=int(raw["generation"]["top_k"]),
+        sample_prompts=list(raw["generation"].get("sample_prompts", [])),
     )
     return ExperimentConfig(
         run=run,
@@ -138,4 +146,3 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
         training=training,
         generation=generation,
     )
-
