@@ -15,3 +15,10 @@ artifacts/tiny_rfn/*
 artifacts/tiny_rfn/tokenizer/*
 !artifacts/tiny_rfn/tokenizer/tokenizer.json
 !artifacts/tiny_rfn/tokenizer/tokenizer_meta.json
+
+!artifacts/tiny_rfn_v2/
+artifacts/tiny_rfn_v2/*
+!artifacts/tiny_rfn_v2/tokenizer/
+artifacts/tiny_rfn_v2/tokenizer/*
+!artifacts/tiny_rfn_v2/tokenizer/tokenizer.json
+!artifacts/tiny_rfn_v2/tokenizer/tokenizer_meta.json

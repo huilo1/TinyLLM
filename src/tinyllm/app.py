@@ -155,7 +155,7 @@ def build_demo(config_path: str, checkpoint_path: str, device: str | None):
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Launch Gradio demo for TinyLLM.")
-    parser.add_argument("--config", default="configs/tiny_rfn.toml")
+    parser.add_argument("--config", default="configs/tiny_rfn_v2.toml")
     parser.add_argument(
         "--checkpoint",
         default="artifacts/tiny_rfn/checkpoints/best.pt",
