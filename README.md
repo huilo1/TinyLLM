@@ -172,6 +172,39 @@ http://127.0.0.1:7860
 
 Если хотите принудительно использовать GPU локально, можно заменить `--device cpu` на `--device cuda`.
 
+## GitHub и деплой
+
+Код проекта лежит в GitHub-репозитории:
+
+```text
+https://github.com/huilo1/TinyLLM
+```
+
+Tokenizer и маленькие inference-метаданные уже лежат в репозитории:
+
+- `artifacts/tiny_rfn/tokenizer/tokenizer.json`
+- `artifacts/tiny_rfn/tokenizer/tokenizer_meta.json`
+- `artifacts/tiny_rfn/train_setup.json`
+- `artifacts/tiny_rfn/eval_test.json`
+
+Большой checkpoint не хранится в обычном git, потому что GitHub ограничивает размер файлов. Он лежит в Release:
+
+```text
+https://github.com/huilo1/TinyLLM/releases/tag/model-v1
+```
+
+Прямая ссылка на `best.pt`:
+
+```text
+https://github.com/huilo1/TinyLLM/releases/download/model-v1/best.pt
+```
+
+Для деплоя на хостинге это значит:
+
+1. Хостинг забирает код из репозитория.
+2. `best.pt` скачивается отдельно из GitHub Release.
+3. Приложение запускается с путем к этому checkpoint.
+
 ## Когда подключать vast.ai
 
 Подключать GPU стоит только после того, как локально пройдены:
