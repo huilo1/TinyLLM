@@ -1,0 +1,19 @@
+name: Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: tinyllm-prod-deploy
+  cancel-in-progress: true
+
+jobs:
+  deploy-prod:
+    runs-on:
+      - self-hosted
+      - tinyllm
+    steps:
+      - name: Deploy to prod
+        run: /opt/apps/deploy-tinyllm.sh prod
