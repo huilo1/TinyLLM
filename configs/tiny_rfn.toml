@@ -1,0 +1,41 @@
+[run]
+name = "tiny_rfn"
+seed = 42
+artifacts_dir = "artifacts"
+
+[data]
+dataset_id = "Kasymkhan/RussianFinancialNews"
+processed_dir = "data/processed/tiny_rfn"
+validation_ratio = 0.02
+min_body_chars = 20
+max_train_samples = 0
+max_validation_samples = 0
+max_test_samples = 0
+text_separator = "\n"
+
+[tokenizer]
+vocab_size = 16000
+min_frequency = 2
+
+[model]
+sequence_length = 256
+n_layers = 6
+n_heads = 8
+d_model = 512
+mlp_ratio = 4
+dropout = 0.1
+
+[training]
+batch_size = 16
+eval_batch_size = 16
+learning_rate = 0.0003
+weight_decay = 0.1
+num_epochs = 8
+grad_clip = 1.0
+num_workers = 0
+
+[generation]
+max_new_tokens = 120
+temperature = 0.8
+top_k = 40
+

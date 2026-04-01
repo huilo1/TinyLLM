@@ -1,0 +1,41 @@
+[run]
+name = "smoke"
+seed = 42
+artifacts_dir = "artifacts"
+
+[data]
+dataset_id = "Kasymkhan/RussianFinancialNews"
+processed_dir = "data/processed/smoke"
+validation_ratio = 0.02
+min_body_chars = 20
+max_train_samples = 1024
+max_validation_samples = 256
+max_test_samples = 256
+text_separator = "\n"
+
+[tokenizer]
+vocab_size = 4096
+min_frequency = 2
+
+[model]
+sequence_length = 128
+n_layers = 4
+n_heads = 4
+d_model = 256
+mlp_ratio = 4
+dropout = 0.1
+
+[training]
+batch_size = 8
+eval_batch_size = 8
+learning_rate = 0.0005
+weight_decay = 0.1
+num_epochs = 2
+grad_clip = 1.0
+num_workers = 0
+
+[generation]
+max_new_tokens = 80
+temperature = 0.9
+top_k = 40
+

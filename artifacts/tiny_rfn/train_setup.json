@@ -1,0 +1,8 @@
+{
+  "device": "cuda",
+  "train_batches": 2488,
+  "validation_batches": 54,
+  "vocab_size": 16000,
+  "parameter_count": 27238400,
+  "estimated_model_size_millions": 35.39
+}

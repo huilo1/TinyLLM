@@ -1,0 +1,10 @@
+{
+  "vocab_size": 16000,
+  "special_tokens": [
+    "<pad>",
+    "<unk>",
+    "<bos>",
+    "<eos>"
+  ],
+  "train_examples": 72092
+}

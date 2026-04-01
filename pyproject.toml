@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "tinyllm-russian-finance"
+version = "0.1.0"
+description = "Educational tiny decoder-only language model trained from scratch on RussianFinancialNews."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "datasets>=3.3.0",
+  "gradio>=5.23.0",
+  "numpy>=2.1.0",
+  "tokenizers>=0.20.0",
+  "torch>=2.5.0",
+  "tqdm>=4.67.0",
+]
+
+[project.scripts]
+tinyllm-prepare = "tinyllm.prepare_dataset:main"
+tinyllm-train-tokenizer = "tinyllm.tokenizer:main"
+tinyllm-cache-tokens = "tinyllm.cache_tokens:main"
+tinyllm-train = "tinyllm.train:main"
+tinyllm-eval = "tinyllm.evaluate:main"
+tinyllm-generate = "tinyllm.generate:main"
+tinyllm-demo = "tinyllm.app:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/tinyllm"]

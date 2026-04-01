@@ -1,0 +1,24 @@
+{
+  "dataset_id": "Kasymkhan/RussianFinancialNews",
+  "processed_dir": "data/processed/tiny_rfn",
+  "summary": {
+    "train": {
+      "num_examples": 72092,
+      "avg_chars": 680.08,
+      "max_chars": 5952,
+      "min_chars": 45
+    },
+    "validation": {
+      "num_examples": 1472,
+      "avg_chars": 726.32,
+      "max_chars": 5557,
+      "min_chars": 58
+    },
+    "test": {
+      "num_examples": 18391,
+      "avg_chars": 676.86,
+      "max_chars": 5946,
+      "min_chars": 53
+    }
+  }
+}

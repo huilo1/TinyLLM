@@ -1,0 +1,17 @@
+.venv/
+__pycache__/
+*.pyc
+artifacts/*
+data/
+checkpoints/
+
+!artifacts/tiny_rfn/
+artifacts/tiny_rfn/*
+!artifacts/tiny_rfn/dataset_summary.json
+!artifacts/tiny_rfn/eval_test.json
+!artifacts/tiny_rfn/history.json
+!artifacts/tiny_rfn/train_setup.json
+!artifacts/tiny_rfn/tokenizer/
+artifacts/tiny_rfn/tokenizer/*
+!artifacts/tiny_rfn/tokenizer/tokenizer.json
+!artifacts/tiny_rfn/tokenizer/tokenizer_meta.json
