@@ -1,0 +1,11 @@
+{
+  "device": "cuda",
+  "data_format": "chat",
+  "assistant_only_loss": true,
+  "train_batches": 12778,
+  "validation_batches": 243,
+  "vocab_size": 16000,
+  "parameter_count": 27369472,
+  "estimated_model_size_millions": 35.52,
+  "total_training_steps": 76668
+}

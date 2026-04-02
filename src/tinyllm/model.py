@@ -137,8 +137,23 @@ class TinyGPT(nn.Module):
         return input_ids
 
 
-def causal_lm_loss(logits: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
-    return F.cross_entropy(logits.view(-1, logits.size(-1)), targets.view(-1))
+def causal_lm_loss(
+    logits: torch.Tensor,
+    targets: torch.Tensor,
+    loss_mask: torch.Tensor | None = None,
+) -> torch.Tensor:
+    losses = F.cross_entropy(
+        logits.view(-1, logits.size(-1)),
+        targets.view(-1),
+        reduction="none",
+    )
+    if loss_mask is None:
+        return losses.mean()
+
+    weights = loss_mask.reshape(-1).to(losses.dtype)
+    if weights.numel() != losses.numel():
+        raise ValueError("loss_mask shape must match targets shape.")
+    return (losses * weights).sum() / weights.sum().clamp_min(1.0)
 
 
 def estimate_parameters(config: ModelConfig, vocab_size: int) -> int:
@@ -149,4 +164,3 @@ def estimate_parameters(config: ModelConfig, vocab_size: int) -> int:
 
 def model_size_millions(config: ModelConfig, vocab_size: int) -> float:
     return round(estimate_parameters(config, vocab_size) / 1_000_000, 2)
-

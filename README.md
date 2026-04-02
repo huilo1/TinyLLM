@@ -2,6 +2,8 @@
 
 Учебный проект: мы строим маленькую decoder-only language model с нуля на датасете [`Kasymkhan/RussianFinancialNews`](https://huggingface.co/datasets/Kasymkhan/RussianFinancialNews).
 
+Следующий учебный шаг для чат-модели на `ZeroAgency/ru-instruct-conversation-v1` описан в [docs/chat-training.md](docs/chat-training.md).
+
 Здесь принципиально важно:
 
 1. Мы не используем pretrained weights.

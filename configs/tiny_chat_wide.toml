@@ -1,0 +1,50 @@
+[run]
+name = "tiny_chat_wide_v1"
+seed = 42
+artifacts_dir = "artifacts"
+
+[data]
+dataset_id = "ZeroAgency/ru-instruct-conversation-v1"
+processed_dir = "data/processed/tiny_chat_wide_v1"
+format = "chat"
+validation_ratio = 0.02
+test_ratio = 0.02
+min_text_chars = 32
+min_messages = 2
+max_train_samples = 0
+max_validation_samples = 0
+max_test_samples = 0
+text_separator = "\n\n"
+deduplicate = true
+
+[tokenizer]
+vocab_size = 16000
+min_frequency = 2
+
+[model]
+sequence_length = 512
+n_layers = 6
+n_heads = 8
+d_model = 512
+mlp_ratio = 4
+dropout = 0.1
+
+[training]
+batch_size = 8
+eval_batch_size = 8
+learning_rate = 0.00025
+weight_decay = 0.1
+num_epochs = 6
+grad_clip = 1.0
+num_workers = 0
+warmup_ratio = 0.03
+min_lr_ratio = 0.2
+
+[generation]
+max_new_tokens = 160
+temperature = 0.7
+top_k = 40
+sample_prompts = [
+  "<|system|>\nТы полезный русскоязычный ассистент. Отвечай кратко и точно.\n\n<|user|>\nОбъясни простыми словами, что такое градиентный спуск.\n\n<|assistant|>",
+  "<|user|>\nСоставь короткий план изучения Python на 2 недели.\n\n<|assistant|>",
+]

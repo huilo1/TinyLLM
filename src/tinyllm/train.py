@@ -21,6 +21,13 @@ DEFAULT_SAMPLE_PROMPTS = [
 ]
 
 
+def unpack_batch(batch, device: str) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor | None]:
+    x = batch[0].to(device)
+    y = batch[1].to(device)
+    loss_mask = batch[2].to(device) if len(batch) > 2 else None
+    return x, y, loss_mask
+
+
 def create_optimizer(model: torch.nn.Module, config: ExperimentConfig) -> torch.optim.Optimizer:
     decay_params = []
     no_decay_params = []
@@ -88,12 +95,11 @@ def evaluate(
     model.eval()
     total_loss = 0.0
     total_batches = 0
-    for x, y in loader:
-        x = x.to(device)
-        y = y.to(device)
+    for batch in loader:
+        x, y, loss_mask = unpack_batch(batch, device)
         with create_autocast(device):
             logits = model(x)
-        loss = causal_lm_loss(logits, y)
+        loss = causal_lm_loss(logits, y, loss_mask=loss_mask)
         total_loss += loss.item()
         total_batches += 1
 
@@ -199,6 +205,8 @@ def train(config: ExperimentConfig) -> None:
 
     metadata = {
         "device": device,
+        "data_format": config.data.format,
+        "assistant_only_loss": config.is_chat_model,
         "train_batches": len(train_loader),
         "validation_batches": len(val_loader),
         "vocab_size": vocab_size,
@@ -218,14 +226,13 @@ def train(config: ExperimentConfig) -> None:
         epoch_losses = []
         epoch_start = time.time()
         progress = tqdm(train_loader, desc=f"Epoch {epoch}/{config.training.num_epochs}")
-        for x, y in progress:
-            x = x.to(device)
-            y = y.to(device)
+        for batch in progress:
+            x, y, loss_mask = unpack_batch(batch, device)
 
             optimizer.zero_grad(set_to_none=True)
             with create_autocast(device):
                 logits = model(x)
-                loss = causal_lm_loss(logits, y)
+                loss = causal_lm_loss(logits, y, loss_mask=loss_mask)
             if grad_scaler is None:
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), config.training.grad_clip)

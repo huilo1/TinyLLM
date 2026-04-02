@@ -22,3 +22,12 @@ artifacts/tiny_rfn_v2/*
 artifacts/tiny_rfn_v2/tokenizer/*
 !artifacts/tiny_rfn_v2/tokenizer/tokenizer.json
 !artifacts/tiny_rfn_v2/tokenizer/tokenizer_meta.json
+
+!artifacts/tiny_chat_wide_v1/
+artifacts/tiny_chat_wide_v1/*
+!artifacts/tiny_chat_wide_v1/eval_test.json
+!artifacts/tiny_chat_wide_v1/train_setup.json
+!artifacts/tiny_chat_wide_v1/tokenizer/
+artifacts/tiny_chat_wide_v1/tokenizer/*
+!artifacts/tiny_chat_wide_v1/tokenizer/tokenizer.json
+!artifacts/tiny_chat_wide_v1/tokenizer/tokenizer_meta.json

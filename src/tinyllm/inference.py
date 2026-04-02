@@ -4,6 +4,7 @@ from pathlib import Path
 
 import torch
 
+from tinyllm.chat import build_chat_transcript, extract_assistant_reply
 from tinyllm.config import ExperimentConfig, load_config
 from tinyllm.data import load_tokenizer
 from tinyllm.model import TinyGPT
@@ -33,6 +34,24 @@ def build_news_prompt(
         text_line = f"{text_line} {body_prefix}"
     parts.append(text_line)
     return "\n".join(parts)
+
+
+def build_chat_prompt(
+    user_message: str,
+    system_prompt: str = "",
+    history: list[dict] | None = None,
+    separator: str = "\n\n",
+) -> str:
+    messages = []
+    if system_prompt.strip():
+        messages.append({"role": "system", "content": system_prompt.strip()})
+    for item in history or []:
+        role = str(item.get("role", "")).strip()
+        content = str(item.get("content", "")).strip()
+        if role and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_message.strip()})
+    return build_chat_transcript(messages, separator=separator, add_generation_prompt=True)
 
 
 class TinyLLMGenerator:
@@ -108,6 +127,30 @@ class TinyLLMGenerator:
         else:
             completion = full_text
         return completion, full_text
+
+    def chat(
+        self,
+        user_message: str,
+        system_prompt: str = "",
+        history: list[dict] | None = None,
+        max_new_tokens: int | None = None,
+        temperature: float | None = None,
+        top_k: int | None = None,
+    ) -> tuple[str, str, str]:
+        prompt = build_chat_prompt(
+            user_message=user_message,
+            system_prompt=system_prompt,
+            history=history,
+            separator=self.config.data.text_separator,
+        )
+        completion, full_text = self.complete(
+            prompt=prompt,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_k=top_k,
+        )
+        reply = extract_assistant_reply(completion)
+        return reply, prompt, full_text
 
 
 def load_generator(

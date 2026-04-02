@@ -33,11 +33,12 @@ def run_evaluation(config_path: str, checkpoint_path: str, split: str) -> dict:
 
     total_loss = 0.0
     total_batches = 0
-    for x, y in loader:
-        x = x.to(device)
-        y = y.to(device)
+    for batch in loader:
+        x = batch[0].to(device)
+        y = batch[1].to(device)
+        loss_mask = batch[2].to(device) if len(batch) > 2 else None
         logits = model(x)
-        loss = causal_lm_loss(logits, y)
+        loss = causal_lm_loss(logits, y, loss_mask=loss_mask)
         total_loss += loss.item()
         total_batches += 1
 
@@ -68,4 +69,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

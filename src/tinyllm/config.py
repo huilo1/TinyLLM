@@ -16,8 +16,11 @@ class RunConfig:
 class DataConfig:
     dataset_id: str
     processed_dir: Path
+    format: str
     validation_ratio: float
-    min_body_chars: int
+    test_ratio: float
+    min_text_chars: int
+    min_messages: int
     max_train_samples: int
     max_validation_samples: int
     max_test_samples: int
@@ -87,11 +90,17 @@ class ExperimentConfig:
     def cache_dir(self) -> Path:
         return self.run_dir / "cache"
 
+    @property
+    def is_chat_model(self) -> bool:
+        return self.data.format == "chat"
+
 
 def load_config(config_path: str | Path) -> ExperimentConfig:
     path = Path(config_path)
     with path.open("rb") as handle:
         raw = tomllib.load(handle)
+
+    data_raw = raw["data"]
 
     run = RunConfig(
         name=raw["run"]["name"],
@@ -99,15 +108,18 @@ def load_config(config_path: str | Path) -> ExperimentConfig:
         artifacts_dir=Path(raw["run"]["artifacts_dir"]),
     )
     data = DataConfig(
-        dataset_id=raw["data"]["dataset_id"],
-        processed_dir=Path(raw["data"]["processed_dir"]),
-        validation_ratio=float(raw["data"]["validation_ratio"]),
-        min_body_chars=int(raw["data"]["min_body_chars"]),
-        max_train_samples=int(raw["data"]["max_train_samples"]),
-        max_validation_samples=int(raw["data"]["max_validation_samples"]),
-        max_test_samples=int(raw["data"]["max_test_samples"]),
-        text_separator=raw["data"]["text_separator"],
-        deduplicate=bool(raw["data"].get("deduplicate", False)),
+        dataset_id=data_raw["dataset_id"],
+        processed_dir=Path(data_raw["processed_dir"]),
+        format=data_raw.get("format", "news"),
+        validation_ratio=float(data_raw["validation_ratio"]),
+        test_ratio=float(data_raw.get("test_ratio", data_raw["validation_ratio"])),
+        min_text_chars=int(data_raw.get("min_text_chars", data_raw.get("min_body_chars", 0))),
+        min_messages=int(data_raw.get("min_messages", 2)),
+        max_train_samples=int(data_raw["max_train_samples"]),
+        max_validation_samples=int(data_raw["max_validation_samples"]),
+        max_test_samples=int(data_raw["max_test_samples"]),
+        text_separator=data_raw["text_separator"],
+        deduplicate=bool(data_raw.get("deduplicate", False)),
     )
     tokenizer = TokenizerConfig(
         vocab_size=int(raw["tokenizer"]["vocab_size"]),
