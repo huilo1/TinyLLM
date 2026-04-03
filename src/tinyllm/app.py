@@ -10,6 +10,8 @@ import gradio as gr
 from tinyllm.inference import build_news_prompt, load_generator
 from tinyllm.remote_inference import HFRemoteSSHGenerator
 
+WEB_MAX_NEW_TOKENS_LIMIT = 240
+
 
 def resolve_training_plot_path(run_dir: Path | None, checkpoint_path: str | Path | None, explicit_path: str | None = None) -> Path | None:
     candidates: list[Path] = []
@@ -163,13 +165,14 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
         return completion, full_text
 
     default_cfg = generator.config.generation
+    default_max_new_tokens = min(default_cfg.max_new_tokens, WEB_MAX_NEW_TOKENS_LIMIT)
     with gr.Blocks(title="TinyLLM Russian Chat Demo") as demo:
         gr.Markdown(
             """
             # TinyLLM Russian Chat Demo
 
-            Это маленькая чат-модель, обученная с нуля. Для локальной qualitative-проверки CPU достаточно,
-            но отвечать она будет медленнее, чем на GPU.
+            Это instruction-tuned QLoRA-адаптер на базе `Qwen2.5-1.5B-Instruct`.
+            Веб-интерфейс работает на прод-сервере, а генерация идет на удаленной GPU-машине через SSH-backed worker.
             """
         )
 
@@ -184,9 +187,9 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
             with gr.Row():
                 max_new_tokens = gr.Slider(
                     minimum=32,
-                    maximum=256,
+                    maximum=WEB_MAX_NEW_TOKENS_LIMIT,
                     step=8,
-                    value=default_cfg.max_new_tokens,
+                    value=default_max_new_tokens,
                     label="max_new_tokens",
                 )
                 temperature = gr.Slider(
@@ -234,9 +237,9 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
             with gr.Row():
                 raw_max_new_tokens = gr.Slider(
                     minimum=32,
-                    maximum=256,
+                    maximum=WEB_MAX_NEW_TOKENS_LIMIT,
                     step=8,
-                    value=default_cfg.max_new_tokens,
+                    value=default_max_new_tokens,
                     label="max_new_tokens",
                 )
                 raw_temperature = gr.Slider(
@@ -306,12 +309,13 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
         return completion, full_text
 
     default_cfg = generator.config.generation
+    default_max_new_tokens = min(default_cfg.max_new_tokens, WEB_MAX_NEW_TOKENS_LIMIT)
     with gr.Blocks(title="TinyLLM Russian Finance Demo") as demo:
         gr.Markdown(
             """
             # TinyLLM Russian Finance Demo
 
-            Эта модель не является чат-моделью. Лучшие результаты она дает на промптах,
+            Это demo для inference через прод-вебморду. Лучшие результаты она дает на промптах,
             похожих на обучающий формат новостей:
             `Источник -> Дата -> Заголовок -> Текст`.
             """
@@ -334,9 +338,9 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
             with gr.Row():
                 max_new_tokens = gr.Slider(
                     minimum=32,
-                    maximum=256,
+                    maximum=WEB_MAX_NEW_TOKENS_LIMIT,
                     step=8,
-                    value=default_cfg.max_new_tokens,
+                    value=default_max_new_tokens,
                     label="max_new_tokens",
                 )
                 temperature = gr.Slider(
@@ -372,9 +376,9 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
             with gr.Row():
                 raw_max_new_tokens = gr.Slider(
                     minimum=32,
-                    maximum=256,
+                    maximum=WEB_MAX_NEW_TOKENS_LIMIT,
                     step=8,
-                    value=default_cfg.max_new_tokens,
+                    value=default_max_new_tokens,
                     label="max_new_tokens",
                 )
                 raw_temperature = gr.Slider(
@@ -419,7 +423,7 @@ def build_demo(
     remote_activate: str | None = None,
     remote_config: str | None = None,
     remote_adapter: str | None = None,
-    remote_max_new_tokens: int = 320,
+    remote_max_new_tokens: int = 240,
     remote_temperature: float = 0.5,
     remote_top_k: int = 40,
 ):
@@ -482,7 +486,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--remote-activate", default=os.getenv("REMOTE_VENV_ACTIVATE"))
     parser.add_argument("--remote-config", default=os.getenv("REMOTE_CONFIG"))
     parser.add_argument("--remote-adapter", default=os.getenv("REMOTE_ADAPTER"))
-    parser.add_argument("--remote-max-new-tokens", type=int, default=int(os.getenv("REMOTE_MAX_NEW_TOKENS", "320")))
+    parser.add_argument("--remote-max-new-tokens", type=int, default=int(os.getenv("REMOTE_MAX_NEW_TOKENS", "240")))
     parser.add_argument("--remote-temperature", type=float, default=float(os.getenv("REMOTE_TEMPERATURE", "0.5")))
     parser.add_argument("--remote-top-k", type=int, default=int(os.getenv("REMOTE_TOP_K", "40")))
     parser.add_argument("--share", action="store_true")
