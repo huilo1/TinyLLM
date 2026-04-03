@@ -4,6 +4,8 @@
 
 Следующий учебный шаг для чат-модели на `ZeroAgency/ru-instruct-conversation-v1` описан в [docs/chat-training.md](docs/chat-training.md).
 
+Практический следующий шаг после tiny-модели с нуля, уже на pretrained weights через `QLoRA`, описан в [docs/hf-qlora.md](docs/hf-qlora.md).
+
 Здесь принципиально важно:
 
 1. Мы не используем pretrained weights.
@@ -269,6 +271,17 @@ https://github.com/huilo1/TinyLLM/releases/download/model-v1/best.pt
 1. Хостинг забирает код из репозитория.
 2. `best.pt` скачивается отдельно из GitHub Release.
 3. Приложение запускается с путем к этому checkpoint.
+
+Текущий публичный UI-план для `https://tinyllm.runningdog.org/` теперь другой:
+
+1. Вебморда деплоится с кодом и легкими report-артефактами через git.
+2. Сам inference не крутится на веб-сервере.
+3. Веб-сервер держит SSH-backed worker и отправляет запросы на отдельную GPU-машину по `ssh angel@localhost -p 2222`.
+4. В UI показываются:
+   - чат / raw prompt;
+   - график падения loss;
+   - train setup;
+   - короткий post-train smoke.
 
 Чтобы деплой понял, что нужно тянуть новую модель, в репозитории есть файл:
 

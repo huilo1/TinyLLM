@@ -1,0 +1,51 @@
+[run]
+name = "qwen25_1_5b_instruct_qlora_v1"
+seed = 42
+artifacts_dir = "artifacts"
+
+[data]
+dataset_id = "ZeroAgency/ru-instruct-conversation-v1"
+processed_dir = "data/processed/qwen25_1_5b_instruct_qlora_v1"
+validation_ratio = 0.02
+test_ratio = 0.02
+min_text_chars = 32
+min_messages = 2
+max_train_samples = 0
+max_validation_samples = 0
+max_test_samples = 0
+deduplicate = true
+max_messages_per_example = 12
+max_chars_per_message = 4000
+max_total_chars = 12000
+
+[model]
+model_id = "Qwen/Qwen2.5-1.5B-Instruct"
+max_length = 1024
+load_in_4bit = true
+use_bf16 = true
+attn_implementation = "sdpa"
+
+[lora]
+r = 16
+alpha = 32
+dropout = 0.05
+target_modules = "all-linear"
+
+[training]
+per_device_train_batch_size = 1
+per_device_eval_batch_size = 1
+gradient_accumulation_steps = 16
+learning_rate = 0.0002
+weight_decay = 0.01
+num_train_epochs = 2.0
+warmup_ratio = 0.03
+logging_steps = 10
+save_steps = 200
+eval_strategy = "steps"
+eval_steps = 200
+save_total_limit = 2
+lr_scheduler_type = "cosine"
+gradient_checkpointing = true
+assistant_only_loss = false
+packing = false
+max_steps = -1

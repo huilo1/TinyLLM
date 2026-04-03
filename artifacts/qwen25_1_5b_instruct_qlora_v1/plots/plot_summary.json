@@ -1,0 +1,12 @@
+{
+  "run_dir": "backups/vast/20260403-181631-qwen25_1_5b_instruct_qlora_v1/qwen25_1_5b_instruct_qlora_v1",
+  "trainer_state_path": "backups/vast/20260403-181631-qwen25_1_5b_instruct_qlora_v1/qwen25_1_5b_instruct_qlora_v1/checkpoints/checkpoint-9740/trainer_state.json",
+  "latest_step": 9740,
+  "train_points": 975,
+  "eval_points": 49,
+  "latest_eval_loss": 0.9841540455818176,
+  "latest_eval_accuracy": 0.7579458192182713,
+  "smoothing_window": 25,
+  "output_png": "backups/vast/20260403-181631-qwen25_1_5b_instruct_qlora_v1/qwen25_1_5b_instruct_qlora_v1/plots/training_history.png",
+  "output_svg": "backups/vast/20260403-181631-qwen25_1_5b_instruct_qlora_v1/qwen25_1_5b_instruct_qlora_v1/plots/training_history.svg"
+}

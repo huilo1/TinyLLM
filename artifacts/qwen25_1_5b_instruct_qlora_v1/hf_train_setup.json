@@ -1,0 +1,20 @@
+{
+  "run_name": "qwen25_1_5b_instruct_qlora_v1",
+  "model_id": "Qwen/Qwen2.5-1.5B-Instruct",
+  "processed_dir": "data/processed/qwen25_1_5b_instruct_qlora_v1",
+  "train_examples": 77908,
+  "validation_examples": 1631,
+  "max_length": 1024,
+  "load_in_4bit": true,
+  "compute_dtype": "torch.bfloat16",
+  "lora_r": 16,
+  "lora_alpha": 32,
+  "lora_dropout": 0.05,
+  "target_modules": "all-linear",
+  "per_device_train_batch_size": 1,
+  "gradient_accumulation_steps": 16,
+  "learning_rate": 0.0002,
+  "num_train_epochs": 2.0,
+  "packing": false,
+  "assistant_only_loss": false
+}
