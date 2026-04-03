@@ -43,3 +43,13 @@ artifacts/qwen25_1_5b_instruct_qlora_v1/plots/*
 !artifacts/qwen25_1_5b_instruct_qlora_v1/smoke/
 artifacts/qwen25_1_5b_instruct_qlora_v1/smoke/*
 !artifacts/qwen25_1_5b_instruct_qlora_v1/smoke/posttrain_smoke.jsonl
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/
+artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/*
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/README.md
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/adapter_config.json
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/adapter_model.safetensors
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/chat_template.jinja
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/tokenizer.json
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/tokenizer_config.json
+!artifacts/qwen25_1_5b_instruct_qlora_v1/adapter/training_args.bin
+deploy/.runtime.prod.env

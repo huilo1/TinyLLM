@@ -46,12 +46,34 @@ def load_generator_bundle(config_path: str, adapter_path: str) -> HFGeneratorBun
 
     model = AutoPeftModelForCausalLM.from_pretrained(
         adapter_path,
-        torch_dtype=dtype,
+        dtype=dtype,
         device_map="auto",
         quantization_config=quantization_config,
     )
     tokenizer = AutoTokenizer.from_pretrained(adapter_path, use_fast=True)
     return HFGeneratorBundle(config=config, model=model, tokenizer=tokenizer)
+
+
+def _build_generation_kwargs(
+    bundle: HFGeneratorBundle,
+    max_new_tokens: int,
+    temperature: float,
+    top_p: float,
+    top_k: int | None = None,
+) -> dict[str, object]:
+    kwargs: dict[str, object] = {
+        "max_new_tokens": max_new_tokens,
+        "pad_token_id": bundle.tokenizer.eos_token_id,
+    }
+    if temperature > 0:
+        kwargs["do_sample"] = True
+        kwargs["temperature"] = temperature
+        kwargs["top_p"] = top_p
+        if top_k and top_k > 0:
+            kwargs["top_k"] = top_k
+    else:
+        kwargs["do_sample"] = False
+    return kwargs
 
 
 def render_messages(
@@ -71,12 +93,13 @@ def render_messages(
 
     outputs = bundle.model.generate(
         **inputs,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k if top_k and top_k > 0 else None,
-        do_sample=temperature > 0,
-        pad_token_id=bundle.tokenizer.eos_token_id,
+        **_build_generation_kwargs(
+            bundle=bundle,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+        ),
     )
     completion = outputs[0][inputs["input_ids"].shape[-1] :]
     completion_text = bundle.tokenizer.decode(completion, skip_special_tokens=True).strip()
@@ -99,12 +122,13 @@ def render_raw_prompt(
     inputs = bundle.tokenizer(raw_prompt, return_tensors="pt").to(bundle.model.device)
     outputs = bundle.model.generate(
         **inputs,
-        max_new_tokens=max_new_tokens,
-        temperature=temperature,
-        top_p=top_p,
-        top_k=top_k if top_k and top_k > 0 else None,
-        do_sample=temperature > 0,
-        pad_token_id=bundle.tokenizer.eos_token_id,
+        **_build_generation_kwargs(
+            bundle=bundle,
+            max_new_tokens=max_new_tokens,
+            temperature=temperature,
+            top_p=top_p,
+            top_k=top_k,
+        ),
     )
     completion = outputs[0][inputs["input_ids"].shape[-1] :]
     completion_text = bundle.tokenizer.decode(completion, skip_special_tokens=True).strip()

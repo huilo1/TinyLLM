@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from pathlib import Path
+import shlex
 import subprocess
 import threading
 
@@ -28,6 +29,7 @@ class HFRemoteSSHGenerator:
         ssh_port: int,
         ssh_user: str,
         remote_workdir: str,
+        remote_activate_path: str,
         remote_config_path: str,
         remote_adapter_path: str,
         report_dir: str | Path,
@@ -40,6 +42,7 @@ class HFRemoteSSHGenerator:
         self.ssh_port = ssh_port
         self.ssh_user = ssh_user
         self.remote_workdir = remote_workdir
+        self.remote_activate_path = remote_activate_path
         self.remote_config_path = remote_config_path
         self.remote_adapter_path = remote_adapter_path
         self.top_p = top_p
@@ -56,13 +59,21 @@ class HFRemoteSSHGenerator:
         self._start_worker()
 
     def _spawn_process(self) -> subprocess.Popen[str]:
-        remote_command = (
-            f"cd {self.remote_workdir} && "
-            'export PATH="$HOME/.local/bin:$PATH" && '
-            f"export PYTHONPATH={self.remote_workdir}/src && "
-            "uv run python -u -m tinyllm.hf_worker "
-            f"--config {self.remote_config_path} "
-            f"--adapter {self.remote_adapter_path}"
+        pythonpath = f"{self.remote_workdir}/src"
+        worker_command = " ".join(
+            [
+                "python -u -m tinyllm.hf_worker",
+                f"--config {shlex.quote(self.remote_config_path)}",
+                f"--adapter {shlex.quote(self.remote_adapter_path)}",
+            ]
+        )
+        remote_command = " && ".join(
+            [
+                f"cd {shlex.quote(self.remote_workdir)}",
+                f"source {shlex.quote(self.remote_activate_path)}",
+                f"export PYTHONPATH={shlex.quote(pythonpath)}",
+                worker_command,
+            ]
         )
         return subprocess.Popen(
             [
@@ -79,7 +90,7 @@ class HFRemoteSSHGenerator:
                 "-o",
                 "StrictHostKeyChecking=accept-new",
                 f"{self.ssh_user}@{self.ssh_host}",
-                remote_command,
+                f"bash -lc {shlex.quote(remote_command)}",
             ],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,

@@ -1,0 +1,34 @@
+FROM python:3.11-slim
+
+ENV PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends build-essential ca-certificates libgomp1 openssh-client \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY pyproject.toml README.md ./
+COPY src ./src
+COPY configs ./configs
+COPY artifacts/qwen25_1_5b_instruct_qlora_v1 ./artifacts/qwen25_1_5b_instruct_qlora_v1
+COPY artifacts/tiny_rfn/tokenizer ./artifacts/tiny_rfn/tokenizer
+COPY artifacts/tiny_rfn_v2/tokenizer ./artifacts/tiny_rfn_v2/tokenizer
+
+RUN pip install --no-cache-dir "torch>=2.5.0" --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir \
+        "datasets>=3.3.0" \
+        "gradio>=5.23.0" \
+        "numpy>=2.1.0" \
+        "tokenizers>=0.20.0" \
+        "tqdm>=4.67.0" \
+    && pip install --no-cache-dir --no-deps .
+
+RUN useradd -m -u 1000 angel
+
+ENV HOME=/home/angel
+
+USER 1000:1000
+
+EXPOSE 7860

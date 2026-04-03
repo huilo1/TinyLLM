@@ -95,8 +95,6 @@ def render_training_report_section(report_dir: Path | None, training_plot_path: 
                 value=str(training_plot_path),
                 label="Train / Eval Dynamics",
                 interactive=False,
-                show_download_button=True,
-                show_fullscreen_button=True,
             )
 
         if train_setup:
@@ -418,6 +416,7 @@ def build_demo(
     remote_ssh_port: int = 2222,
     remote_ssh_user: str = "angel",
     remote_workdir: str | None = None,
+    remote_activate: str | None = None,
     remote_config: str | None = None,
     remote_adapter: str | None = None,
     remote_max_new_tokens: int = 320,
@@ -427,13 +426,14 @@ def build_demo(
     resolved_report_dir = Path(report_dir) if report_dir else None
 
     if backend == "remote-hf":
-        if not all([remote_ssh_host, remote_workdir, remote_config, remote_adapter]):
-            raise ValueError("Remote HF backend requires SSH host, workdir, remote config, and remote adapter path.")
+        if not all([remote_ssh_host, remote_workdir, remote_activate, remote_config, remote_adapter]):
+            raise ValueError("Remote HF backend requires SSH host, workdir, remote activate path, remote config, and remote adapter path.")
         generator = HFRemoteSSHGenerator(
             ssh_host=remote_ssh_host,
             ssh_port=remote_ssh_port,
             ssh_user=remote_ssh_user,
             remote_workdir=remote_workdir,
+            remote_activate_path=remote_activate,
             remote_config_path=remote_config,
             remote_adapter_path=remote_adapter,
             report_dir=resolved_report_dir or Path("artifacts/qwen25_1_5b_instruct_qlora_v1"),
@@ -479,6 +479,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--remote-ssh-port", type=int, default=int(os.getenv("REMOTE_SSH_PORT", "2222")))
     parser.add_argument("--remote-ssh-user", default=os.getenv("REMOTE_SSH_USER", "angel"))
     parser.add_argument("--remote-workdir", default=os.getenv("REMOTE_WORKDIR"))
+    parser.add_argument("--remote-activate", default=os.getenv("REMOTE_VENV_ACTIVATE"))
     parser.add_argument("--remote-config", default=os.getenv("REMOTE_CONFIG"))
     parser.add_argument("--remote-adapter", default=os.getenv("REMOTE_ADAPTER"))
     parser.add_argument("--remote-max-new-tokens", type=int, default=int(os.getenv("REMOTE_MAX_NEW_TOKENS", "320")))
@@ -501,6 +502,7 @@ def main() -> None:
         remote_ssh_port=args.remote_ssh_port,
         remote_ssh_user=args.remote_ssh_user,
         remote_workdir=args.remote_workdir,
+        remote_activate=args.remote_activate,
         remote_config=args.remote_config,
         remote_adapter=args.remote_adapter,
         remote_max_new_tokens=args.remote_max_new_tokens,

@@ -1,0 +1,32 @@
+services:
+  tinyllm:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile.prod
+    image: tinyllm-tinyllm
+    container_name: tinyllm
+    restart: unless-stopped
+    user: "1000:1000"
+    network_mode: host
+    env_file:
+      - .runtime.prod.env
+    command:
+      - tinyllm-demo
+      - --backend
+      - ${APP_BACKEND}
+      - --config
+      - ${APP_CONFIG}
+      - --report-dir
+      - ${APP_REPORT_DIR}
+      - --host
+      - 0.0.0.0
+      - --port
+      - ${APP_PORT}
+    volumes:
+      - ${RUNTIME_SSH_DIR}:/home/angel/.ssh:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.tinyllm.rule=Host(`${DEPLOY_PUBLIC_HOST}`)"
+      - "traefik.http.routers.tinyllm.entrypoints=websecure"
+      - "traefik.http.routers.tinyllm.tls.certresolver=letsencrypt"
+      - "traefik.http.services.tinyllm.loadbalancer.server.port=${APP_PORT}"
