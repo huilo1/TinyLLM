@@ -15,5 +15,6 @@ jobs:
       - self-hosted
       - tinyllm
     steps:
-      - name: Deploy to prod
-        run: /opt/apps/deploy-tinyllm.sh prod
+      - uses: actions/checkout@v4
+      - name: Run repo deploy instructions
+        run: bash deploy/deploy-prod.sh
