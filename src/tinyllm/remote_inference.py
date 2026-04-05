@@ -113,6 +113,25 @@ class HFRemoteSSHGenerator:
             bufsize=1,
         )
 
+    def _ssh_base_command(self) -> list[str]:
+        return [
+            "ssh",
+            "-T",
+            "-p",
+            str(self.ssh_port),
+            "-o",
+            "BatchMode=yes",
+            "-o",
+            "ServerAliveInterval=30",
+            "-o",
+            "ServerAliveCountMax=3",
+            "-o",
+            "ConnectTimeout=10",
+            "-o",
+            "StrictHostKeyChecking=accept-new",
+            f"{self.ssh_user}@{self.ssh_host}",
+        ]
+
     def _read_json_message(self) -> dict:
         if self._process is None or self._process.stdout is None:
             raise RemoteWorkerUnavailable("Remote worker is not running.")
@@ -147,6 +166,20 @@ class HFRemoteSSHGenerator:
                 self._process.kill()
                 self._process.wait(timeout=2)
         self._process = None
+
+    def _cleanup_remote_workers(self) -> None:
+        match = f"python -u -m tinyllm.hf_worker --config {self.remote_config_path} --adapter {self.remote_adapter_path}"
+        cleanup_command = f"pkill -f -- {shlex.quote(match)} || true"
+        subprocess.run(
+            [
+                *self._ssh_base_command(),
+                f"bash -lc {shlex.quote(cleanup_command)}",
+            ],
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
 
     def _start_worker_once(self) -> None:
         self._process = self._spawn_process()
@@ -193,6 +226,15 @@ class HFRemoteSSHGenerator:
                     raise RemoteInferenceError(response.get("error", "Remote inference failed."))
                 return response
             raise RemoteWorkerUnavailable(f"Remote worker is unavailable: {last_error}")
+
+    def unload(self) -> str:
+        with self._lock:
+            was_running = self._process is not None and self._process.poll() is None
+            self._stop_process()
+            self._cleanup_remote_workers()
+        if was_running:
+            return "Модель выгружена из памяти GPU. Следующий запрос поднимет worker заново."
+        return "Модель уже не была загружена. Следующий запрос поднимет worker заново."
 
     def complete(
         self,

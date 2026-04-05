@@ -65,6 +65,27 @@ def load_smoke_rows(path: Path, limit: int = 3) -> list[dict]:
     return rows
 
 
+def render_runtime_controls(generator) -> None:
+    unload_fn = getattr(generator, "unload", None)
+    if not callable(unload_fn):
+        return
+
+    def unload_remote_model() -> str:
+        try:
+            return unload_fn()
+        except (RemoteWorkerUnavailable, RemoteInferenceError) as exc:
+            _raise_ui_error(exc)
+
+    with gr.Row():
+        unload_button = gr.Button("Выгрузить модель", variant="stop")
+        unload_status = gr.Textbox(
+            label="Состояние GPU worker",
+            value="Модель поднимается автоматически по первому запросу и после reboot GPU-хоста.",
+            interactive=False,
+        )
+    unload_button.click(fn=unload_remote_model, inputs=[], outputs=[unload_status])
+
+
 def render_training_report_section(report_dir: Path | None, training_plot_path: Path | None) -> None:
     plot_summary = load_report_json(report_dir / "plots" / "plot_summary.json") if report_dir else None
     train_setup = load_report_json(report_dir / "hf_train_setup.json") if report_dir else None
@@ -185,6 +206,7 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
             Веб-интерфейс работает на прод-сервере, а генерация идет на удаленной GPU-машине через SSH-backed worker.
             """
         )
+        render_runtime_controls(generator)
 
         with gr.Tab("Чат"):
             system_prompt = gr.Textbox(
@@ -336,6 +358,7 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
             `Источник -> Дата -> Заголовок -> Текст`.
             """
         )
+        render_runtime_controls(generator)
 
         with gr.Tab("Структурный Промпт"):
             with gr.Row():
