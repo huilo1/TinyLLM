@@ -22,6 +22,7 @@ GitHub Actions сначала checkout'ит текущий commit, затем з
   - host с точки зрения контейнера: `localhost`
   - port: `2222`
   - user: `angel`
+- remote worker стартует лениво: если после перезагрузки GPU-хоста процесса нет, первый запрос из вебки сам поднимает его через SSH и ждет cold start;
 - обучение-репорты лежат прямо в git как lightweight assets:
   - `artifacts/qwen25_1_5b_instruct_qlora_v1/plots/training_history.png`
   - `artifacts/qwen25_1_5b_instruct_qlora_v1/plots/plot_summary.json`

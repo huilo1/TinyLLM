@@ -6,6 +6,7 @@ from pathlib import Path
 import shlex
 import subprocess
 import threading
+import time
 
 
 @dataclass(slots=True)
@@ -20,6 +21,14 @@ class RemoteDemoConfig:
     generation: RemoteGenerationConfig
     run_dir: Path
     is_chat_model: bool = True
+
+
+class RemoteWorkerUnavailable(RuntimeError):
+    pass
+
+
+class RemoteInferenceError(RuntimeError):
+    pass
 
 
 class HFRemoteSSHGenerator:
@@ -37,6 +46,8 @@ class HFRemoteSSHGenerator:
         temperature: float,
         top_k: int,
         top_p: float = 0.9,
+        startup_timeout_s: float = 180.0,
+        startup_retry_interval_s: float = 3.0,
     ) -> None:
         self.ssh_host = ssh_host
         self.ssh_port = ssh_port
@@ -46,6 +57,8 @@ class HFRemoteSSHGenerator:
         self.remote_config_path = remote_config_path
         self.remote_adapter_path = remote_adapter_path
         self.top_p = top_p
+        self.startup_timeout_s = startup_timeout_s
+        self.startup_retry_interval_s = startup_retry_interval_s
         self.config = RemoteDemoConfig(
             generation=RemoteGenerationConfig(
                 max_new_tokens=max_new_tokens,
@@ -56,7 +69,6 @@ class HFRemoteSSHGenerator:
         )
         self._lock = threading.Lock()
         self._process: subprocess.Popen[str] | None = None
-        self._start_worker()
 
     def _spawn_process(self) -> subprocess.Popen[str]:
         pythonpath = f"{self.remote_workdir}/src"
@@ -88,6 +100,8 @@ class HFRemoteSSHGenerator:
                 "-o",
                 "ServerAliveCountMax=3",
                 "-o",
+                "ConnectTimeout=10",
+                "-o",
                 "StrictHostKeyChecking=accept-new",
                 f"{self.ssh_user}@{self.ssh_host}",
                 f"bash -lc {shlex.quote(remote_command)}",
@@ -101,24 +115,61 @@ class HFRemoteSSHGenerator:
 
     def _read_json_message(self) -> dict:
         if self._process is None or self._process.stdout is None:
-            raise RuntimeError("Remote worker is not running.")
+            raise RemoteWorkerUnavailable("Remote worker is not running.")
+        last_line = ""
         while True:
             line = self._process.stdout.readline()
             if line == "":
-                raise RuntimeError("Remote worker closed the connection.")
+                detail = f" Last output: {last_line}" if last_line else ""
+                raise RemoteWorkerUnavailable(f"Remote worker closed the connection.{detail}")
             line = line.strip()
             if not line:
                 continue
             try:
                 return json.loads(line)
             except json.JSONDecodeError:
+                last_line = line
                 continue
 
-    def _start_worker(self) -> None:
+    def _stop_process(self) -> None:
+        if self._process is None:
+            return
+        if self._process.stdin is not None:
+            try:
+                self._process.stdin.close()
+            except OSError:
+                pass
+        if self._process.poll() is None:
+            self._process.terminate()
+            try:
+                self._process.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                self._process.kill()
+                self._process.wait(timeout=2)
+        self._process = None
+
+    def _start_worker_once(self) -> None:
         self._process = self._spawn_process()
         message = self._read_json_message()
         if message.get("status") != "ready":
-            raise RuntimeError(f"Remote worker failed to start: {message}")
+            raise RemoteWorkerUnavailable(f"Remote worker failed to start: {message}")
+
+    def _start_worker(self) -> None:
+        deadline = time.monotonic() + self.startup_timeout_s
+        last_error: Exception | None = None
+        while True:
+            try:
+                self._start_worker_once()
+                return
+            except Exception as exc:
+                last_error = exc
+                self._stop_process()
+                if time.monotonic() >= deadline:
+                    raise RemoteWorkerUnavailable(
+                        f"Remote GPU worker did not become ready within {self.startup_timeout_s:.0f}s. "
+                        f"Last error: {exc}"
+                    ) from exc
+                time.sleep(self.startup_retry_interval_s)
 
     def _ensure_process(self) -> None:
         if self._process is None or self._process.poll() is not None:
@@ -126,14 +177,22 @@ class HFRemoteSSHGenerator:
 
     def _request(self, payload: dict) -> dict:
         with self._lock:
-            self._ensure_process()
-            assert self._process is not None and self._process.stdin is not None
-            self._process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
-            self._process.stdin.flush()
-            response = self._read_json_message()
-            if not response.get("ok"):
-                raise RuntimeError(response.get("error", "Remote inference failed."))
-            return response
+            last_error: Exception | None = None
+            for _ in range(2):
+                try:
+                    self._ensure_process()
+                    assert self._process is not None and self._process.stdin is not None
+                    self._process.stdin.write(json.dumps(payload, ensure_ascii=False) + "\n")
+                    self._process.stdin.flush()
+                    response = self._read_json_message()
+                except (BrokenPipeError, OSError, RemoteWorkerUnavailable) as exc:
+                    last_error = exc
+                    self._stop_process()
+                    continue
+                if not response.get("ok"):
+                    raise RemoteInferenceError(response.get("error", "Remote inference failed."))
+                return response
+            raise RemoteWorkerUnavailable(f"Remote worker is unavailable: {last_error}")
 
     def complete(
         self,

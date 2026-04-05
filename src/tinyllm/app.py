@@ -8,9 +8,13 @@ from pathlib import Path
 import gradio as gr
 
 from tinyllm.inference import build_news_prompt, load_generator
-from tinyllm.remote_inference import HFRemoteSSHGenerator
+from tinyllm.remote_inference import HFRemoteSSHGenerator, RemoteInferenceError, RemoteWorkerUnavailable
 
 WEB_MAX_NEW_TOKENS_LIMIT = 240
+
+
+def _raise_ui_error(exc: Exception) -> None:
+    raise gr.Error(str(exc)) from exc
 
 
 def resolve_training_plot_path(run_dir: Path | None, checkpoint_path: str | Path | None, explicit_path: str | None = None) -> Path | None:
@@ -136,14 +140,17 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
             and str(item.get("content", "")).strip()
         ]
 
-        reply, prompt, full_text = generator.chat(
-            user_message=message,
-            system_prompt=system_prompt,
-            history=prompt_history,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_k=top_k,
-        )
+        try:
+            reply, prompt, full_text = generator.chat(
+                user_message=message,
+                system_prompt=system_prompt,
+                history=prompt_history,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_k=top_k,
+            )
+        except (RemoteWorkerUnavailable, RemoteInferenceError) as exc:
+            _raise_ui_error(exc)
         updated_history = history + [
             {"role": "user", "content": message},
             {"role": "assistant", "content": reply},
@@ -156,12 +163,15 @@ def build_chat_demo(generator, report_dir: Path | None = None, training_plot_pat
         temperature: float,
         top_k: int,
     ) -> tuple[str, str]:
-        completion, full_text = generator.complete(
-            prompt=prompt,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_k=top_k,
-        )
+        try:
+            completion, full_text = generator.complete(
+                prompt=prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_k=top_k,
+            )
+        except (RemoteWorkerUnavailable, RemoteInferenceError) as exc:
+            _raise_ui_error(exc)
         return completion, full_text
 
     default_cfg = generator.config.generation
@@ -286,12 +296,15 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
             title=title,
             body_prefix=body_prefix,
         )
-        completion, full_text = generator.complete(
-            prompt=prompt,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_k=top_k,
-        )
+        try:
+            completion, full_text = generator.complete(
+                prompt=prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_k=top_k,
+            )
+        except (RemoteWorkerUnavailable, RemoteInferenceError) as exc:
+            _raise_ui_error(exc)
         return prompt, completion, full_text
 
     def run_raw(
@@ -300,12 +313,15 @@ def build_news_demo(generator, report_dir: Path | None = None, training_plot_pat
         temperature: float,
         top_k: int,
     ) -> tuple[str, str]:
-        completion, full_text = generator.complete(
-            prompt=prompt,
-            max_new_tokens=max_new_tokens,
-            temperature=temperature,
-            top_k=top_k,
-        )
+        try:
+            completion, full_text = generator.complete(
+                prompt=prompt,
+                max_new_tokens=max_new_tokens,
+                temperature=temperature,
+                top_k=top_k,
+            )
+        except (RemoteWorkerUnavailable, RemoteInferenceError) as exc:
+            _raise_ui_error(exc)
         return completion, full_text
 
     default_cfg = generator.config.generation
